@@ -1,3 +1,179 @@
+## [0.31.7](https://github.com/libp2p/js-libp2p/compare/v0.31.6...v0.31.7) (2021-06-14)
+
+
+### Bug Fixes
+
+* chat example with new multiaddr ([#946](https://github.com/libp2p/js-libp2p/issues/946)) ([d8ba284](https://github.com/libp2p/js-libp2p/commit/d8ba2848833d9fb8a963d1b7c8d27062c6f829da))
+* dialer leaking resources after stopping ([#947](https://github.com/libp2p/js-libp2p/issues/947)) ([b291bc0](https://github.com/libp2p/js-libp2p/commit/b291bc06ec13feeb6e010730edfad754a3b2dc1b))
+
+
+
+## [0.31.6](https://github.com/libp2p/js-libp2p/compare/v0.31.5...v0.31.6) (2021-05-27)
+
+
+### Features
+
+* keychain rotate passphrase ([#944](https://github.com/libp2p/js-libp2p/issues/944)) ([478963a](https://github.com/libp2p/js-libp2p/commit/478963ad2d195444494c0acc54cb3847a29e117c))
+
+
+
+## [0.31.5](https://github.com/libp2p/js-libp2p/compare/v0.31.4...v0.31.5) (2021-05-12)
+
+
+### Bug Fixes
+
+* store remote agent and protocol version during identify ([#943](https://github.com/libp2p/js-libp2p/issues/943)) ([818d2b2](https://github.com/libp2p/js-libp2p/commit/818d2b2a98736f4242694479089396f6070cdad5))
+
+
+
+## [0.31.4](https://github.com/libp2p/js-libp2p/compare/v0.31.3...v0.31.4) (2021-05-12)
+
+
+### Bug Fixes
+
+* peerRouting.findPeer() trying to find self ([#941](https://github.com/libp2p/js-libp2p/issues/941)) ([a79c6b5](https://github.com/libp2p/js-libp2p/commit/a79c6b50d7fddbcdb1af53efae922cecad4c9a83))
+
+
+
+## [0.31.3](https://github.com/libp2p/js-libp2p/compare/v0.31.2...v0.31.3) (2021-05-04)
+
+
+
+## [0.31.2](https://github.com/libp2p/js-libp2p/compare/v0.31.1...v0.31.2) (2021-04-30)
+
+
+### Bug Fixes
+
+* moving averages record types ([#935](https://github.com/libp2p/js-libp2p/issues/935)) ([b5a9eb2](https://github.com/libp2p/js-libp2p/commit/b5a9eb208763efa027d0b4caae87c515b6f5869b))
+
+
+
+## [0.31.1](https://github.com/libp2p/js-libp2p/compare/v0.31.0...v0.31.1) (2021-04-30)
+
+
+### Bug Fixes
+
+* event emitter and interfaces types for discovery and routing ([#934](https://github.com/libp2p/js-libp2p/issues/934)) ([302bb90](https://github.com/libp2p/js-libp2p/commit/302bb9005891aa06b70a5f354bfac6b2d5a3c3b8))
+
+
+
+# [0.31.0](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.7...v0.31.0) (2021-04-28)
+
+
+
+# [0.31.0-rc.7](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.6...v0.31.0-rc.7) (2021-04-27)
+
+
+### Bug Fixes
+
+* address book guarantees no replicated entries are added ([#927](https://github.com/libp2p/js-libp2p/issues/927)) ([ac370fc](https://github.com/libp2p/js-libp2p/commit/ac370fc9679b51da8cee3791b6dd268d0695d136))
+
+
+
+# [0.31.0-rc.6](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.5...v0.31.0-rc.6) (2021-04-22)
+
+
+### Bug Fixes
+
+* keychain optional pw and use interfaces for validators and selectors instead ([#924](https://github.com/libp2p/js-libp2p/issues/924)) ([88b0415](https://github.com/libp2p/js-libp2p/commit/88b04156bf614650c2b14d49b12e969c5eecf04d))
+
+
+
+# [0.31.0-rc.5](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.4...v0.31.0-rc.5) (2021-04-21)
+
+
+### Bug Fixes
+
+* address book should not emit peer event if no addresses are known ([b4fb9b7](https://github.com/libp2p/js-libp2p/commit/b4fb9b7bf266ba03c4462c0a41b1c2691e4e88d4))
+* demand pubsub subclass instead of pubsub instance ([#922](https://github.com/libp2p/js-libp2p/issues/922)) ([086b0ec](https://github.com/libp2p/js-libp2p/commit/086b0ec0df2fac93845d0a0a6b2e2464e869afcd))
+* dht configuration selectors and validators ([#919](https://github.com/libp2p/js-libp2p/issues/919)) ([cc1f4af](https://github.com/libp2p/js-libp2p/commit/cc1f4af879a58e94538591851d0085ff98cd2641))
+
+
+
+# [0.31.0-rc.4](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.3...v0.31.0-rc.4) (2021-04-20)
+
+
+### Bug Fixes
+
+* add clientMode dht arg and upgrade interface-datastore ([#918](https://github.com/libp2p/js-libp2p/issues/918)) ([975e779](https://github.com/libp2p/js-libp2p/commit/975e77991e67dd9bff790b83df7bd6fa5ddcfc67))
+* do not add abort signals to useless addresses ([#913](https://github.com/libp2p/js-libp2p/issues/913)) ([06e8f3d](https://github.com/libp2p/js-libp2p/commit/06e8f3dd42432e4b37ab7904b02abde7d1cadda3))
+* specify pbjs root ([#917](https://github.com/libp2p/js-libp2p/issues/917)) ([b043bca](https://github.com/libp2p/js-libp2p/commit/b043bca607565cf534771e6cf975288a8ff3030b))
+
+
+
+# [0.31.0-rc.3](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.2...v0.31.0-rc.3) (2021-04-19)
+
+
+### Bug Fixes
+
+* remove inline arg types from function definitions ([#916](https://github.com/libp2p/js-libp2p/issues/916)) ([2af692f](https://github.com/libp2p/js-libp2p/commit/2af692fb4de572168524ae684608fc6526de4ef7))
+
+
+
+# [0.31.0-rc.2](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.1...v0.31.0-rc.2) (2021-04-16)
+
+
+### Bug Fixes
+
+* metrics stats and moving averages types ([#915](https://github.com/libp2p/js-libp2p/issues/915)) ([3d0a79e](https://github.com/libp2p/js-libp2p/commit/3d0a79eff3bc34a5bdc8ffa31e9b09345a02ad9d))
+
+
+
+# [0.31.0-rc.1](https://github.com/libp2p/js-libp2p/compare/v0.31.0-rc.0...v0.31.0-rc.1) (2021-04-16)
+
+
+### Bug Fixes
+
+* dial protocol should throw if no protocol is provided ([#914](https://github.com/libp2p/js-libp2p/issues/914)) ([21c9aee](https://github.com/libp2p/js-libp2p/commit/21c9aeecb13440238aa6b0fb5a6731d2f87d4938))
+
+
+### BREAKING CHANGES
+
+* dialProtocol does not return connection when no protocols are provided
+
+
+
+# [0.31.0-rc.0](https://github.com/libp2p/js-libp2p/compare/v0.30.12...v0.31.0-rc.0) (2021-04-15)
+
+
+
+## [0.30.12](https://github.com/libp2p/js-libp2p/compare/v0.30.11...v0.30.12) (2021-03-27)
+
+
+### Bug Fixes
+
+* the API of es6-promisify is not the same as promisify-es6 ([#905](https://github.com/libp2p/js-libp2p/issues/905)) ([a7128f0](https://github.com/libp2p/js-libp2p/commit/a7128f07ec8d4b729145ecfc6ad1d585ffddea46))
+
+
+
+## [0.30.11](https://github.com/libp2p/js-libp2p/compare/v0.30.10...v0.30.11) (2021-03-23)
+
+
+### Bug Fixes
+
+* connection direction should be only inbound or outbound ([9504f19](https://github.com/libp2p/js-libp2p/commit/9504f1951a3cca55bb7b4e25e4934e4024034ee8))
+* interface-datastore update ([f5c1cd1](https://github.com/libp2p/js-libp2p/commit/f5c1cd1fb07bc73cf9d9da3c2eb4327bed4279a4))
+
+
+
+## [0.30.10](https://github.com/libp2p/js-libp2p/compare/v0.30.9...v0.30.10) (2021-03-09)
+
+
+### Bug Fixes
+
+* conn mgr access to moving averages record object ([#897](https://github.com/libp2p/js-libp2p/issues/897)) ([5f702f3](https://github.com/libp2p/js-libp2p/commit/5f702f3481afd4ad4fbc89f0e9b75a6d56b03520))
+
+
+
+## [0.30.9](https://github.com/libp2p/js-libp2p/compare/v0.30.8...v0.30.9) (2021-02-25)
+
+
+### Bug Fixes
+
+* transport manager fault tolerance should include tolerance to transport listen fail ([#893](https://github.com/libp2p/js-libp2p/issues/893)) ([3f314d5](https://github.com/libp2p/js-libp2p/commit/3f314d5e90f74583b721386d0c9c5d8363cd4de7))
+
+
+
 ## [0.30.8](https://github.com/libp2p/js-libp2p/compare/v0.30.7...v0.30.8) (2021-02-11)
 
 

@@ -283,7 +283,7 @@ const node = await Libp2p.create({
         interval: 1000,
         enabled: true
       },
-      [Bootstrap.tag:] {
+      [Bootstrap.tag]: {
         list: [ // A list of bootstrap peers to connect to starting up the node
           "/ip4/104.131.131.82/tcp/4001/ipfs/QmaCpDMGvV2BGHeYERUEnRQAwe3N8SzbUtfsmvsqQLuvuJ",
           "/dnsaddr/bootstrap.libp2p.io/ipfs/QmNnooDu7bfjPFoTZYxMNLWUQJyrVwtbZg5gBMjTezGAJN",
@@ -374,7 +374,7 @@ const node = await Libp2p.create({
   config: {
     dht: {                        // The DHT options (and defaults) can be found in its documentation
       kBucketSize: 20,
-      enabled: true,
+      enabled: true,              // This flag is required for DHT to run (disabled by default)
       randomWalk: {
         enabled: true,            // Allows to disable discovery (enabled by default)
         interval: 300e3,
@@ -400,14 +400,14 @@ const PeerId = require('peer-id')
 // create a peerId
 const peerId = await PeerId.create()
 
-const delegatedPeerRouting = new DelegatedPeerRouter(ipfsHttpClient({
-  host: 'node0.delegate.ipfs.io' // In production you should setup your own delegates
+const delegatedPeerRouting = new DelegatedPeerRouter(ipfsHttpClient.create({
+  host: 'node0.delegate.ipfs.io', // In production you should setup your own delegates
   protocol: 'https',
   port: 443
 }))
 
-const delegatedContentRouting = new DelegatedContentRouter(peerId, ipfsHttpClient({
-  host: 'node0.delegate.ipfs.io' // In production you should setup your own delegates
+const delegatedContentRouting = new DelegatedContentRouter(peerId, ipfsHttpClient.create({
+  host: 'node0.delegate.ipfs.io', // In production you should setup your own delegates
   protocol: 'https',
   port: 443
 }))
@@ -544,7 +544,7 @@ const node = await Libp2p.create({
   }
 })
 
-await libp2p.loadKeychain()
+await node.loadKeychain()
 ```
 
 #### Configuring Dialing
@@ -628,7 +628,7 @@ const TCP = require('libp2p-tcp')
 const MPLEX = require('libp2p-mplex')
 const { NOISE } = require('libp2p-noise')
 
-const { FaultTolerance } = require('libp2p/src/transport-manager')}
+const { FaultTolerance } = require('libp2p/src/transport-manager')
 
 const node = await Libp2p.create({
   modules: {

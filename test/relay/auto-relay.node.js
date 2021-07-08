@@ -3,13 +3,14 @@
 
 const { expect } = require('aegir/utils/chai')
 const delay = require('delay')
+const pDefer = require('p-defer')
 const pWaitFor = require('p-wait-for')
 const sinon = require('sinon')
 const nock = require('nock')
 
 const ipfsHttpClient = require('ipfs-http-client')
 const DelegatedContentRouter = require('libp2p-delegated-content-routing')
-const multiaddr = require('multiaddr')
+const { Multiaddr } = require('multiaddr')
 const Libp2p = require('../../src')
 const { relay: relayMulticodec } = require('../../src/circuit/multicodec')
 
@@ -204,7 +205,7 @@ describe('auto-relay', () => {
       expect(relayLibp2p1.multiaddrs[originalMultiaddrs1Length].getPeerId()).to.eql(relayLibp2p2.peerId.toB58String())
 
       // Dial from the other through a relay
-      const relayedMultiaddr2 = multiaddr(`${relayLibp2p1.multiaddrs[0]}/p2p/${relayLibp2p1.peerId.toB58String()}/p2p-circuit`)
+      const relayedMultiaddr2 = new Multiaddr(`${relayLibp2p1.multiaddrs[0]}/p2p/${relayLibp2p1.peerId.toB58String()}/p2p-circuit`)
       libp2p.peerStore.addressBook.add(relayLibp2p2.peerId, [relayedMultiaddr2])
 
       await libp2p.dial(relayLibp2p2.peerId)
@@ -358,6 +359,7 @@ describe('auto-relay', () => {
       expect(relayLibp2p1.connectionManager.size).to.equal(1)
 
       // Spy on dial
+      sinon.spy(autoRelay1, '_tryToListenOnRelay')
       sinon.spy(relayLibp2p1, 'dial')
 
       // Remove peer used as relay from peerStore and disconnect it
@@ -368,8 +370,53 @@ describe('auto-relay', () => {
 
       // Wait for other peer connected to be added as listen addr
       await pWaitFor(() => relayLibp2p1.transportManager.listen.callCount === 2)
+      expect(autoRelay1._tryToListenOnRelay.callCount).to.equal(1)
       expect(autoRelay1._listenRelays.size).to.equal(1)
       expect(relayLibp2p1.connectionManager.size).to.eql(1)
+    })
+
+    it('should not fail when trying to dial unreachable peers to add as hop relay and replaced removed ones', async () => {
+      const defer = pDefer()
+      // Spy if a connected peer is being added as listen relay
+      sinon.spy(autoRelay1, '_addListenRelay')
+      sinon.spy(relayLibp2p1.transportManager, 'listen')
+
+      // Discover one relay and connect
+      relayLibp2p1.peerStore.addressBook.add(relayLibp2p2.peerId, relayLibp2p2.multiaddrs)
+      await relayLibp2p1.dial(relayLibp2p2.peerId)
+
+      // Discover an extra relay and connect to gather its Hop support
+      relayLibp2p1.peerStore.addressBook.add(relayLibp2p3.peerId, relayLibp2p3.multiaddrs)
+      await relayLibp2p1.dial(relayLibp2p3.peerId)
+
+      // Wait for both peer to be attempted to added as listen relay
+      await pWaitFor(() => autoRelay1._addListenRelay.callCount === 2)
+      expect(autoRelay1._listenRelays.size).to.equal(1)
+      expect(relayLibp2p1.connectionManager.size).to.equal(2)
+
+      // Only one will be used for listeninng
+      expect(relayLibp2p1.transportManager.listen.callCount).to.equal(1)
+
+      // Disconnect not used listen relay
+      await relayLibp2p1.hangUp(relayLibp2p3.peerId)
+
+      expect(autoRelay1._listenRelays.size).to.equal(1)
+      expect(relayLibp2p1.connectionManager.size).to.equal(1)
+
+      // Stub dial
+      sinon.stub(relayLibp2p1, 'dial').callsFake(() => {
+        defer.resolve()
+        return Promise.reject(new Error('failed to dial'))
+      })
+
+      // Remove peer used as relay from peerStore and disconnect it
+      relayLibp2p1.peerStore.delete(relayLibp2p2.peerId)
+      await relayLibp2p1.hangUp(relayLibp2p2.peerId)
+      expect(autoRelay1._listenRelays.size).to.equal(0)
+      expect(relayLibp2p1.connectionManager.size).to.equal(0)
+
+      // Wait for failed dial
+      await defer.promise
     })
   })
 
@@ -468,12 +515,12 @@ describe('auto-relay', () => {
 
       // Create 2 nodes, and turn HOP on for the relay
       ;[local, remote, relayLibp2p] = peerIds.map((peerId, index) => {
-        const delegate = new DelegatedContentRouter(peerId, ipfsHttpClient({
+        const delegate = new DelegatedContentRouter(peerId, ipfsHttpClient.create({
           host: '0.0.0.0',
           protocol: 'http',
           port: 60197
         }), [
-          multiaddr('/ip4/0.0.0.0/tcp/60197')
+          new Multiaddr('/ip4/0.0.0.0/tcp/60197')
         ])
 
         const opts = {

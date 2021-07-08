@@ -1,12 +1,14 @@
 // @ts-nocheck
 'use strict'
 
-/** @typedef {import('../types').EventEmitterFactory} Events */
-/** @type Events */
-const EventEmitter = require('events')
-const Big = require('bignumber.js')
-const MovingAverage = require('moving-average')
+const { EventEmitter } = require('events')
+const { BigNumber: Big } = require('bignumber.js')
+const MovingAverage = require('@vascosantos/moving-average')
 const retimer = require('retimer')
+
+/**
+ * @typedef {import('@vascosantos/moving-average').IMovingAverage} IMovingAverage
+ */
 
 class Stats extends EventEmitter {
   /**
@@ -21,24 +23,30 @@ class Stats extends EventEmitter {
 
     this._options = options
     this._queue = []
-    this._stats = {}
+
+    /** @type {{ dataReceived: Big, dataSent: Big }} */
+    this._stats = {
+      dataReceived: Big(0),
+      dataSent: Big(0)
+    }
 
     this._frequencyLastTime = Date.now()
     this._frequencyAccumulators = {}
 
+    /** @type {{ dataReceived: IMovingAverage[], dataSent: IMovingAverage[] }} */
     this._movingAverages = {}
 
     this._update = this._update.bind(this)
 
     const intervals = this._options.movingAverageIntervals
 
-    for (var i = 0; i < initialCounters.length; i++) {
-      var key = initialCounters[i]
+    for (let i = 0; i < initialCounters.length; i++) {
+      const key = initialCounters[i]
       this._stats[key] = Big(0)
       this._movingAverages[key] = {}
-      for (var k = 0; k < intervals.length; k++) {
-        var interval = intervals[k]
-        var ma = this._movingAverages[key][interval] = MovingAverage(interval)
+      for (let k = 0; k < intervals.length; k++) {
+        const interval = intervals[k]
+        const ma = this._movingAverages[key][interval] = MovingAverage(interval)
         ma.push(this._frequencyLastTime, 0)
       }
     }
@@ -72,8 +80,6 @@ class Stats extends EventEmitter {
 
   /**
    * Returns a clone of the current stats.
-   *
-   * @returns {Object}
    */
   get snapshot () {
     return Object.assign({}, this._stats)
@@ -81,8 +87,6 @@ class Stats extends EventEmitter {
 
   /**
    * Returns a clone of the internal movingAverages
-   *
-   * @returns {MovingAverage}
    */
   get movingAverages () {
     return Object.assign({}, this._movingAverages)
@@ -219,9 +223,9 @@ class Stats extends EventEmitter {
 
     const intervals = this._options.movingAverageIntervals
 
-    for (var i = 0; i < intervals.length; i++) {
-      var movingAverageInterval = intervals[i]
-      var movingAverage = movingAverages[movingAverageInterval]
+    for (let i = 0; i < intervals.length; i++) {
+      const movingAverageInterval = intervals[i]
+      let movingAverage = movingAverages[movingAverageInterval]
       if (!movingAverage) {
         movingAverage = movingAverages[movingAverageInterval] = MovingAverage(movingAverageInterval)
       }

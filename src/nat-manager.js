@@ -1,14 +1,16 @@
 'use strict'
 
+// @ts-ignore nat-api does not export types
 const NatAPI = require('@motrix/nat-api')
 const debug = require('debug')
-const promisify = require('promisify-es6')
-const Multiaddr = require('multiaddr')
+const { promisify } = require('es6-promisify')
+const { Multiaddr } = require('multiaddr')
 const log = Object.assign(debug('libp2p:nat'), {
   error: debug('libp2p:nat:err')
 })
-const { isBrowser } = require('ipfs-utils/src/env')
+const { isBrowser } = require('wherearewe')
 const retry = require('p-retry')
+// @ts-ignore private-api does not export types
 const isPrivateIp = require('private-ip')
 const pkg = require('../package.json')
 const errcode = require('err-code')
@@ -17,33 +19,39 @@ const {
 } = require('./errors')
 const isLoopback = require('libp2p-utils/src/multiaddr/is-loopback')
 
+const DEFAULT_TTL = 7200
+
 /**
  * @typedef {import('peer-id')} PeerId
  * @typedef {import('./transport-manager')} TransportManager
  * @typedef {import('./address-manager')} AddressManager
  */
 
+/**
+ * @typedef {Object} NatManagerProperties
+ * @property {PeerId} peerId - The peer ID of the current node
+ * @property {TransportManager} transportManager - A transport manager
+ * @property {AddressManager} addressManager - An address manager
+ *
+ * @typedef {Object} NatManagerOptions
+ * @property {boolean} enabled - Whether to enable the NAT manager
+ * @property {string} [externalIp] - Pass a value to use instead of auto-detection
+ * @property {string} [description] - A string value to use for the port mapping description on the gateway
+ * @property {number} [ttl = DEFAULT_TTL] - How long UPnP port mappings should last for in seconds (minimum 1200)
+ * @property {boolean} [keepAlive] - Whether to automatically refresh UPnP port mappings when their TTL is reached
+ * @property {string} [gateway] - Pass a value to use instead of auto-detection
+ * @property {object} [pmp] - PMP options
+ * @property {boolean} [pmp.enabled] - Whether to enable PMP as well as UPnP
+ */
+
 function highPort (min = 1024, max = 65535) {
   return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
-const DEFAULT_TTL = 7200
-
 class NatManager {
   /**
    * @class
-   * @param {object} options
-   * @param {PeerId} options.peerId - The peer ID of the current node
-   * @param {TransportManager} options.transportManager - A transport manager
-   * @param {AddressManager} options.addressManager - An address manager
-   * @param {boolean} options.enabled - Whether to enable the NAT manager
-   * @param {string} [options.externalIp] - Pass a value to use instead of auto-detection
-   * @param {string} [options.description] - A string value to use for the port mapping description on the gateway
-   * @param {number} [options.ttl] - How long UPnP port mappings should last for in seconds (minimum 1200)
-   * @param {boolean} [options.keepAlive] - Whether to automatically refresh UPnP port mappings when their TTL is reached
-   * @param {string} [options.gateway] - Pass a value to use instead of auto-detection
-   * @param {object} [options.pmp] - PMP options
-   * @param {boolean} [options.pmp.enabled] - Whether to enable PMP as well as UPnP
+   * @param {NatManagerProperties & NatManagerOptions} options
    */
   constructor ({ peerId, addressManager, transportManager, ...options }) {
     this._peerId = peerId
@@ -89,15 +97,18 @@ class NatManager {
 
       if (!addr.isThinWaistAddress() || transport !== 'tcp') {
         // only bare tcp addresses
+        // eslint-disable-next-line no-continue
         continue
       }
 
       if (isLoopback(addr)) {
+        // eslint-disable-next-line no-continue
         continue
       }
 
-      if (family !== 'ipv4') {
+      if (family !== 4) {
         // ignore ipv6
+        // eslint-disable-next-line no-continue
         continue
       }
 
@@ -119,9 +130,9 @@ class NatManager {
       })
 
       this._addressManager.addObservedAddr(Multiaddr.fromNodeAddress({
-        family: 'IPv4',
+        family: 4,
         address: publicIp,
-        port: `${publicPort}`
+        port: publicPort
       }, transport))
     }
   }
@@ -132,14 +143,32 @@ class NatManager {
     }
 
     const client = new NatAPI(this._options)
-    const map = promisify(client.map, { context: client })
-    const destroy = promisify(client.destroy, { context: client })
-    const externalIp = promisify(client.externalIp, { context: client })
 
+    /** @type {(...any: any) => any} */
+    const map = promisify(client.map.bind(client))
+    /** @type {(...any: any) => any} */
+    const destroy = promisify(client.destroy.bind(client))
+    /** @type {(...any: any) => any} */
+    const externalIp = promisify(client.externalIp.bind(client))
+
+    // these are all network operations so add a retry
     this._client = {
-      // these are all network operations so add a retry
+      /**
+       * @param  {...any} args
+       * @returns {Promise<void>}
+       */
       map: (...args) => retry(() => map(...args), { onFailedAttempt: log.error, unref: true }),
+
+      /**
+       * @param  {...any} args
+       * @returns {Promise<void>}
+       */
       destroy: (...args) => retry(() => destroy(...args), { onFailedAttempt: log.error, unref: true }),
+
+      /**
+       * @param  {...any} args
+       * @returns {Promise<string>}
+       */
       externalIp: (...args) => retry(() => externalIp(...args), { onFailedAttempt: log.error, unref: true })
     }
 

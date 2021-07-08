@@ -10,7 +10,7 @@ const Transport = require('libp2p-websockets')
 const filters = require('libp2p-websockets/src/filters')
 const Muxer = require('libp2p-mplex')
 const { NOISE: Crypto } = require('libp2p-noise')
-const multiaddr = require('multiaddr')
+const { Multiaddr } = require('multiaddr')
 const AggregateError = require('aggregate-error')
 const { AbortError } = require('libp2p-interfaces/src/transport/errors')
 
@@ -26,7 +26,7 @@ const { MULTIADDRS_WEBSOCKETS } = require('../fixtures/browser')
 const mockUpgrader = require('../utils/mockUpgrader')
 const createMockConnection = require('../utils/mockConnection')
 const { createPeerId } = require('../utils/creators/peer')
-const unsupportedAddr = multiaddr('/ip4/127.0.0.1/tcp/9999/ws/p2p/QmckxVrJw1Yo8LqvmDJNUmdAsKtSbiKWmrXJFyKmUraBoN')
+const unsupportedAddr = new Multiaddr('/ip4/127.0.0.1/tcp/9999/ws/p2p/QmckxVrJw1Yo8LqvmDJNUmdAsKtSbiKWmrXJFyKmUraBoN')
 const remoteAddr = MULTIADDRS_WEBSOCKETS[0]
 
 describe('Dialing (direct, WebSockets)', () => {
@@ -52,7 +52,7 @@ describe('Dialing (direct, WebSockets)', () => {
 
   it('should have appropriate defaults', () => {
     const dialer = new Dialer({ transportManager: localTM, peerStore })
-    expect(dialer.concurrency).to.equal(Constants.MAX_PARALLEL_DIALS)
+    expect(dialer.maxParallelDials).to.equal(Constants.MAX_PARALLEL_DIALS)
     expect(dialer.timeout).to.equal(Constants.DIAL_TIMEOUT)
   })
 
@@ -155,7 +155,7 @@ describe('Dialing (direct, WebSockets)', () => {
   it('should abort dials on queue task timeout', async () => {
     const dialer = new Dialer({
       transportManager: localTM,
-      timeout: 50,
+      dialTimeout: 50,
       peerStore: {
         addressBook: {
           add: () => {},
@@ -179,9 +179,9 @@ describe('Dialing (direct, WebSockets)', () => {
 
   it('should sort addresses on dial', async () => {
     const peerMultiaddrs = [
-      multiaddr('/ip4/127.0.0.1/tcp/15001/ws'),
-      multiaddr('/ip4/20.0.0.1/tcp/15001/ws'),
-      multiaddr('/ip4/30.0.0.1/tcp/15001/ws')
+      new Multiaddr('/ip4/127.0.0.1/tcp/15001/ws'),
+      new Multiaddr('/ip4/20.0.0.1/tcp/15001/ws'),
+      new Multiaddr('/ip4/30.0.0.1/tcp/15001/ws')
     ]
 
     sinon.spy(addressSort, 'publicAddressesFirst')
@@ -190,7 +190,7 @@ describe('Dialing (direct, WebSockets)', () => {
     const dialer = new Dialer({
       transportManager: localTM,
       addressSorter: addressSort.publicAddressesFirst,
-      concurrency: 3,
+      maxParallelDials: 3,
       peerStore
     })
 
@@ -211,7 +211,7 @@ describe('Dialing (direct, WebSockets)', () => {
   it('should dial to the max concurrency', async () => {
     const dialer = new Dialer({
       transportManager: localTM,
-      concurrency: 2,
+      maxParallelDials: 2,
       peerStore: {
         addressBook: {
           set: () => {},
@@ -249,7 +249,7 @@ describe('Dialing (direct, WebSockets)', () => {
   it('.destroy should abort pending dials', async () => {
     const dialer = new Dialer({
       transportManager: localTM,
-      concurrency: 2,
+      maxParallelDials: 2,
       peerStore: {
         addressBook: {
           set: () => {},
@@ -290,6 +290,34 @@ describe('Dialing (direct, WebSockets)', () => {
     }
   })
 
+  it('should cancel pending dial targets before proceeding', async () => {
+    const dialer = new Dialer({
+      transportManager: localTM,
+      peerStore: {
+        addressBook: {
+          set: () => { }
+        }
+      }
+    })
+
+    sinon.stub(dialer, '_createDialTarget').callsFake(() => {
+      const deferredDial = pDefer()
+      return deferredDial.promise
+    })
+
+    // Perform dial
+    const dialPromise = dialer.connectToPeer(peerId)
+
+    // Let the call stack run
+    await delay(0)
+
+    dialer.destroy()
+
+    await expect(dialPromise)
+      .to.eventually.be.rejected()
+      .and.to.have.property('code', 'ABORT_ERR')
+  })
+
   describe('libp2p.dialer', () => {
     const transportKey = Transport.prototype[Symbol.toStringTag]
     let libp2p
@@ -318,8 +346,8 @@ describe('Dialing (direct, WebSockets)', () => {
       })
 
       expect(libp2p.dialer).to.exist()
-      expect(libp2p.dialer.concurrency).to.equal(Constants.MAX_PARALLEL_DIALS)
-      expect(libp2p.dialer.perPeerLimit).to.equal(Constants.MAX_PER_PEER_DIALS)
+      expect(libp2p.dialer.maxParallelDials).to.equal(Constants.MAX_PARALLEL_DIALS)
+      expect(libp2p.dialer.maxDialsPerPeer).to.equal(Constants.MAX_PER_PEER_DIALS)
       expect(libp2p.dialer.timeout).to.equal(Constants.DIAL_TIMEOUT)
       // Ensure the dialer also has the transport manager
       expect(libp2p.transportManager).to.equal(libp2p.dialer.transportManager)
@@ -349,8 +377,8 @@ describe('Dialing (direct, WebSockets)', () => {
       libp2p = await Libp2p.create(config)
 
       expect(libp2p.dialer).to.exist()
-      expect(libp2p.dialer.concurrency).to.equal(config.dialer.maxParallelDials)
-      expect(libp2p.dialer.perPeerLimit).to.equal(config.dialer.maxDialsPerPeer)
+      expect(libp2p.dialer.maxParallelDials).to.equal(config.dialer.maxParallelDials)
+      expect(libp2p.dialer.maxDialsPerPeer).to.equal(config.dialer.maxDialsPerPeer)
       expect(libp2p.dialer.timeout).to.equal(config.dialer.dialTimeout)
     })
 
@@ -460,6 +488,42 @@ describe('Dialing (direct, WebSockets)', () => {
       })
 
       await libp2p.hangUp(remoteAddr)
+    })
+
+    it('should cancel pending dial targets and stop', async () => {
+      const [, remotePeerId] = await createPeerId({ number: 2 })
+
+      libp2p = new Libp2p({
+        peerId,
+        modules: {
+          transport: [Transport],
+          streamMuxer: [Muxer],
+          connEncryption: [Crypto]
+        },
+        config: {
+          transport: {
+            [transportKey]: {
+              filter: filters.all
+            }
+          }
+        }
+      })
+
+      sinon.stub(libp2p.dialer, '_createDialTarget').callsFake(() => {
+        const deferredDial = pDefer()
+        return deferredDial.promise
+      })
+
+      // Perform dial
+      const dialPromise = libp2p.dial(remotePeerId)
+
+      // Let the call stack run
+      await delay(0)
+
+      await libp2p.stop()
+      await expect(dialPromise)
+        .to.eventually.be.rejected()
+        .and.to.have.property('code', 'ABORT_ERR')
     })
 
     it('should abort pending dials on stop', async () => {

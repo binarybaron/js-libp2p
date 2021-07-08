@@ -6,7 +6,7 @@ const sinon = require('sinon')
 const Transport = require('libp2p-tcp')
 const Muxer = require('libp2p-mplex')
 const { NOISE: Crypto } = require('libp2p-noise')
-const multiaddr = require('multiaddr')
+const { Multiaddr } = require('multiaddr')
 const PeerId = require('peer-id')
 const delay = require('delay')
 const pDefer = require('p-defer')
@@ -33,8 +33,8 @@ const createMockConnection = require('../utils/mockConnection')
 const Peers = require('../fixtures/peers')
 const { createPeerId } = require('../utils/creators/peer')
 
-const listenAddr = multiaddr('/ip4/127.0.0.1/tcp/0')
-const unsupportedAddr = multiaddr('/ip4/127.0.0.1/tcp/9999/ws/p2p/QmckxVrJw1Yo8LqvmDJNUmdAsKtSbiKWmrXJFyKmUraBoN')
+const listenAddr = new Multiaddr('/ip4/127.0.0.1/tcp/0')
+const unsupportedAddr = new Multiaddr('/ip4/127.0.0.1/tcp/9999/ws/p2p/QmckxVrJw1Yo8LqvmDJNUmdAsKtSbiKWmrXJFyKmUraBoN')
 
 describe('Dialing (direct, TCP)', () => {
   let remoteTM
@@ -98,8 +98,8 @@ describe('Dialing (direct, TCP)', () => {
     const dialer = new Dialer({ transportManager: localTM, peerStore })
 
     await expect(dialer.connectToPeer(unsupportedAddr))
-      .to.eventually.be.rejectedWith(AggregateError)
-      .and.to.have.nested.property('._errors[0].code', ErrorCodes.ERR_TRANSPORT_UNAVAILABLE)
+      .to.eventually.be.rejectedWith(Error)
+      .and.to.have.nested.property('.code', ErrorCodes.ERR_NO_VALID_ADDRESSES)
   })
 
   it('should fail to connect if peer has no known addresses', async () => {
@@ -139,15 +139,35 @@ describe('Dialing (direct, TCP)', () => {
     const peerId = await PeerId.createFromJSON(Peers[0])
 
     await expect(dialer.connectToPeer(peerId))
-      .to.eventually.be.rejectedWith(AggregateError)
-      .and.to.have.nested.property('._errors[0].code', ErrorCodes.ERR_TRANSPORT_UNAVAILABLE)
+      .to.eventually.be.rejectedWith(Error)
+      .and.to.have.nested.property('.code', ErrorCodes.ERR_NO_VALID_ADDRESSES)
+  })
+
+  it('should only try to connect to addresses supported by the transports configured', async () => {
+    const remoteAddrs = remoteTM.getAddrs()
+    const dialer = new Dialer({
+      transportManager: localTM,
+      peerStore: {
+        addressBook: {
+          add: () => { },
+          getMultiaddrsForPeer: () => [...remoteAddrs, unsupportedAddr]
+        }
+      }
+    })
+    const peerId = await PeerId.createFromJSON(Peers[0])
+
+    sinon.spy(localTM, 'dial')
+    const connection = await dialer.connectToPeer(peerId)
+    expect(localTM.dial.callCount).to.equal(remoteAddrs.length)
+    expect(connection).to.exist()
+    await connection.close()
   })
 
   it('should abort dials on queue task timeout', async () => {
     const dialer = new Dialer({
       transportManager: localTM,
       peerStore,
-      timeout: 50
+      dialTimeout: 50
     })
     sinon.stub(localTM, 'dial').callsFake(async (addr, options) => {
       expect(options.signal).to.exist()
@@ -165,13 +185,13 @@ describe('Dialing (direct, TCP)', () => {
 
   it('should dial to the max concurrency', async () => {
     const addrs = [
-      multiaddr('/ip4/0.0.0.0/tcp/8000'),
-      multiaddr('/ip4/0.0.0.0/tcp/8001'),
-      multiaddr('/ip4/0.0.0.0/tcp/8002')
+      new Multiaddr('/ip4/0.0.0.0/tcp/8000'),
+      new Multiaddr('/ip4/0.0.0.0/tcp/8001'),
+      new Multiaddr('/ip4/0.0.0.0/tcp/8002')
     ]
     const dialer = new Dialer({
       transportManager: localTM,
-      concurrency: 2,
+      maxParallelDials: 2,
       peerStore: {
         addressBook: {
           add: () => {},
@@ -350,6 +370,25 @@ describe('Dialing (direct, TCP)', () => {
       await connection.close()
       await pWaitFor(() => connection.streams.length === 0)
       await pWaitFor(() => remoteConn.streams.length === 0)
+    })
+
+    it('should throw when using dialProtocol with no protocols', async () => {
+      libp2p = new Libp2p({
+        peerId,
+        modules: {
+          transport: [Transport],
+          streamMuxer: [Muxer],
+          connEncryption: [Crypto]
+        }
+      })
+
+      await expect(libp2p.dialProtocol(remotePeerId))
+        .to.eventually.be.rejectedWith(Error)
+        .and.to.have.property('code', ErrorCodes.ERR_INVALID_PROTOCOLS_FOR_STREAM)
+
+      await expect(libp2p.dialProtocol(remotePeerId, []))
+        .to.eventually.be.rejectedWith(Error)
+        .and.to.have.property('code', ErrorCodes.ERR_INVALID_PROTOCOLS_FOR_STREAM)
     })
 
     it('should be able to use hangup to close connections', async () => {

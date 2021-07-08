@@ -5,10 +5,12 @@ const log = Object.assign(debug('libp2p:upgrader'), {
   error: debug('libp2p:upgrader:err')
 })
 const errCode = require('err-code')
+// @ts-ignore multistream-select does not export types
 const Multistream = require('multistream-select')
 const { Connection } = require('libp2p-interfaces/src/connection')
 const PeerId = require('peer-id')
 const { pipe } = require('it-pipe')
+// @ts-ignore mutable-proxy does not export types
 const mutableProxy = require('mutable-proxy')
 
 const { codes } = require('./errors')
@@ -19,7 +21,8 @@ const { codes } = require('./errors')
  * @typedef {import('libp2p-interfaces/src/stream-muxer/types').Muxer} Muxer
  * @typedef {import('libp2p-interfaces/src/stream-muxer/types').MuxedStream} MuxedStream
  * @typedef {import('libp2p-interfaces/src/crypto/types').Crypto} Crypto
- * @typedef {import('multiaddr')} Multiaddr
+ * @typedef {import('libp2p-interfaces/src/connection').Connection} Connection
+ * @typedef {import('multiaddr').Multiaddr} Multiaddr
  */
 
 /**
@@ -36,8 +39,8 @@ class Upgrader {
    * @param {import('./metrics')} [options.metrics]
    * @param {Map<string, Crypto>} [options.cryptos]
    * @param {Map<string, MuxerFactory>} [options.muxers]
-   * @param {(Connection) => void} options.onConnection - Called when a connection is upgraded
-   * @param {(Connection) => void} options.onConnectionEnd
+   * @param {(connection: Connection) => void} options.onConnection - Called when a connection is upgraded
+   * @param {(connection: Connection) => void} options.onConnectionEnd
    */
   constructor ({
     localPeer,
@@ -51,6 +54,7 @@ class Upgrader {
     this.metrics = metrics
     this.cryptos = cryptos
     this.muxers = muxers
+    /** @type {import("./pnet") | null} */
     this.protector = null
     this.protocols = new Map()
     this.onConnection = onConnection
@@ -133,7 +137,12 @@ class Upgrader {
    * @returns {Promise<Connection>}
    */
   async upgradeOutbound (maConn) {
-    const remotePeerId = PeerId.createFromB58String(maConn.remoteAddr.getPeerId())
+    const idStr = maConn.remoteAddr.getPeerId()
+    if (!idStr) {
+      throw errCode(new Error('outbound connection must have a peer id'), codes.ERR_INVALID_MULTIADDR)
+    }
+
+    const remotePeerId = PeerId.createFromB58String(idStr)
 
     let encryptedConn
     let remotePeer
@@ -201,7 +210,7 @@ class Upgrader {
    * @private
    * @param {object} options
    * @param {string} options.cryptoProtocol - The crypto protocol that was negotiated
-   * @param {string} options.direction - One of ['inbound', 'outbound']
+   * @param {'inbound' | 'outbound'} options.direction - One of ['inbound', 'outbound']
    * @param {MultiaddrConnection} options.maConn - The transport layer connection
    * @param {MuxedStream | MultiaddrConnection} options.upgradedConn - A duplex connection returned from multiplexer and/or crypto selection
    * @param {MuxerFactory} [options.Muxer] - The muxer to be used for muxing
@@ -216,16 +225,19 @@ class Upgrader {
     Muxer,
     remotePeer
   }) {
+    /** @type {import("libp2p-interfaces/src/stream-muxer/types").Muxer} */
     let muxer
+    /** @type {import("libp2p-interfaces/src/connection/connection").CreatedMuxedStream | undefined} */
     let newStream
-    // eslint-disable-next-line prefer-const
-    let connection
+    /** @type {Connection} */
+    let connection // eslint-disable-line prefer-const
 
     if (Muxer) {
       // Create the muxer
       muxer = new Muxer({
         // Run anytime a remote stream is created
         onStream: async muxedStream => {
+          if (!connection) return
           const mss = new Multistream.Listener(muxedStream)
           try {
             const { stream, protocol } = await mss.handle(Array.from(this.protocols.keys()))
@@ -243,7 +255,7 @@ class Upgrader {
         }
       })
 
-      newStream = async protocols => {
+      newStream = async (protocols) => {
         log('%s: starting new stream on %s', direction, protocols)
         const muxedStream = muxer.newStream()
         const mss = new Multistream.Dialer(muxedStream)
@@ -302,12 +314,12 @@ class Upgrader {
         encryption: cryptoProtocol
       },
       newStream: newStream || errConnectionNotMultiplexed,
-      getStreams: () => muxer ? muxer.streams : errConnectionNotMultiplexed,
-      close: async (err) => {
-        await maConn.close(err)
+      getStreams: () => muxer ? muxer.streams : errConnectionNotMultiplexed(),
+      close: async () => {
+        await maConn.close()
         // Ensure remaining streams are aborted
         if (muxer) {
-          muxer.streams.map(stream => stream.abort(err))
+          muxer.streams.map(stream => stream.abort())
         }
       }
     })
@@ -371,7 +383,7 @@ class Upgrader {
    * @private
    * @async
    * @param {PeerId} localPeer - The initiators PeerId
-   * @param {*} connection
+   * @param {MultiaddrConnection} connection
    * @param {PeerId} remotePeerId
    * @param {Map<string, Crypto>} cryptos
    * @returns {Promise<CryptoResult>} An encrypted connection, remote peer `PeerId` and the protocol of the `Crypto` used

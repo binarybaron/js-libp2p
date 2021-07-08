@@ -5,9 +5,7 @@
  * This code is based on `latency-monitor` (https://github.com/mlucool/latency-monitor) by `mlucool` (https://github.com/mlucool), available under Apache License 2.0 (https://github.com/mlucool/latency-monitor/blob/master/LICENSE)
  */
 
-/** @typedef {import('../types').EventEmitterFactory} Events */
-/** @type Events */
-const EventEmitter = require('events')
+const { EventEmitter } = require('events')
 const VisibilityChangeEmitter = require('./visibility-change-emitter')
 const debug = require('debug')('latency-monitor:LatencyMonitor')
 
@@ -59,7 +57,8 @@ class LatencyMonitor extends EventEmitter {
     that._latecyCheckMultiply = 2 * (that.latencyRandomPercentage / 100.0) * that.latencyCheckIntervalMs
     that._latecyCheckSubtract = that._latecyCheckMultiply / 2
 
-    that.dataEmitIntervalMs = (dataEmitIntervalMs === null || dataEmitIntervalMs === 0) ? undefined
+    that.dataEmitIntervalMs = (dataEmitIntervalMs === null || dataEmitIntervalMs === 0)
+      ? undefined
       : dataEmitIntervalMs || 5 * 1000 // 5s
     debug('latencyCheckIntervalMs: %s dataEmitIntervalMs: %s',
       that.latencyCheckIntervalMs, that.dataEmitIntervalMs)
@@ -70,47 +69,53 @@ class LatencyMonitor extends EventEmitter {
     }
 
     that.asyncTestFn = asyncTestFn // If there is no asyncFn, we measure latency
+  }
 
+  start () {
     // If process: use high resolution timer
     if (globalThis.process && globalThis.process.hrtime) { // eslint-disable-line no-undef
       debug('Using process.hrtime for timing')
-      that.now = globalThis.process.hrtime // eslint-disable-line no-undef
-      that.getDeltaMS = (startTime) => {
-        const hrtime = that.now(startTime)
+      this.now = globalThis.process.hrtime // eslint-disable-line no-undef
+      this.getDeltaMS = (startTime) => {
+        const hrtime = this.now(startTime)
         return (hrtime[0] * 1000) + (hrtime[1] / 1000000)
       }
       // Let's try for a timer that only monotonically increases
     } else if (typeof window !== 'undefined' && window.performance && window.performance.now) {
       debug('Using performance.now for timing')
-      that.now = window.performance.now.bind(window.performance)
-      that.getDeltaMS = (startTime) => Math.round(that.now() - startTime)
+      this.now = window.performance.now.bind(window.performance)
+      this.getDeltaMS = (startTime) => Math.round(this.now() - startTime)
     } else {
       debug('Using Date.now for timing')
-      that.now = Date.now
-      that.getDeltaMS = (startTime) => that.now() - startTime
+      this.now = Date.now
+      this.getDeltaMS = (startTime) => this.now() - startTime
     }
 
-    that._latencyData = that._initLatencyData()
+    this._latencyData = this._initLatencyData()
 
     // We check for isBrowser because of browsers set max rates of timeouts when a page is hidden,
     // so we fall back to another library
     // See: http://stackoverflow.com/questions/6032429/chrome-timeouts-interval-suspended-in-background-tabs
     if (isBrowser()) {
-      that._visibilityChangeEmitter = new VisibilityChangeEmitter()
+      this._visibilityChangeEmitter = new VisibilityChangeEmitter()
 
-      that._visibilityChangeEmitter.on('visibilityChange', (pageInFocus) => {
+      this._visibilityChangeEmitter.on('visibilityChange', (pageInFocus) => {
         if (pageInFocus) {
-          that._startTimers()
+          this._startTimers()
         } else {
-          that._emitSummary()
-          that._stopTimers()
+          this._emitSummary()
+          this._stopTimers()
         }
       })
     }
 
-    if (!that._visibilityChangeEmitter || that._visibilityChangeEmitter.isVisible()) {
-      that._startTimers()
+    if (!this._visibilityChangeEmitter || this._visibilityChangeEmitter.isVisible()) {
+      this._startTimers()
     }
+  }
+
+  stop () {
+    this._stopTimers()
   }
 
   /**
@@ -174,7 +179,8 @@ class LatencyMonitor extends EventEmitter {
       events: this._latencyData.events,
       minMs: this._latencyData.minMs,
       maxMs: this._latencyData.maxMs,
-      avgMs: this._latencyData.events ? this._latencyData.totalMs / this._latencyData.events
+      avgMs: this._latencyData.events
+        ? this._latencyData.totalMs / this._latencyData.events
         : Number.POSITIVE_INFINITY,
       lengthMs: this.getDeltaMS(this._latencyData.startTime)
     }

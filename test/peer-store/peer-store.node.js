@@ -1,8 +1,7 @@
 'use strict'
 /* eslint-env mocha */
 
-const { chai, expect } = require('aegir/utils/chai')
-chai.use(require('chai-bytes'))
+const { expect } = require('aegir/utils/chai')
 const sinon = require('sinon')
 
 const baseOptions = require('../utils/base-options')
@@ -20,6 +19,8 @@ describe('libp2p.peerStore', () => {
       }
     })
   })
+
+  afterEach(() => Promise.all([libp2p, remoteLibp2p].map(l => l.stop())))
 
   it('adds peer address to AddressBook and keys to the keybook when establishing connection', async () => {
     const remoteIdStr = remoteLibp2p.peerId.toB58String()

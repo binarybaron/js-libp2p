@@ -12,10 +12,10 @@ const errCode = require('err-code')
 const { updateSelfPeerRecord } = require('./record/utils')
 
 /**
- * @typedef {import('multiaddr')} Multiaddr
+ * @typedef {import('multiaddr').Multiaddr} Multiaddr
  * @typedef {import('libp2p-interfaces/src/connection').Connection} Connection
- * @typedef {import('libp2p-interfaces/src/transport/types').TransportFactory} TransportFactory
- * @typedef {import('libp2p-interfaces/src/transport/types').Transport} Transport
+ * @typedef {import('libp2p-interfaces/src/transport/types').TransportFactory<any, any>} TransportFactory
+ * @typedef {import('libp2p-interfaces/src/transport/types').Transport<any, any>} Transport
  *
  * @typedef {Object} TransportManagerProperties
  * @property {import('./')} libp2p
@@ -121,6 +121,7 @@ class TransportManager {
    * @returns {Multiaddr[]}
    */
   getAddrs () {
+    /** @type {Multiaddr[]} */
     let addrs = []
     for (const listeners of this._listeners.values()) {
       for (const listener of listeners) {
@@ -196,7 +197,7 @@ class TransportManager {
       // listening on remote addresses as they may be offline. We could then potentially
       // just wait for any (`p-any`) listener to succeed on each transport before returning
       const isListening = results.find(r => r.isFulfilled === true)
-      if (!isListening) {
+      if (!isListening && this.faultTolerance !== FAULT_TOLERANCE.NO_FATAL) {
         throw errCode(new Error(`Transport (${key}) could not listen on any available address`), codes.ERR_NO_VALID_ADDRESSES)
       }
     }
