@@ -1,1 +1,1 @@
-`declare module 'it-buffer';
+declare module 'it-buffer';
